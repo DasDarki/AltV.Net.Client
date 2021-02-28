@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -8,6 +9,7 @@ namespace JavaScript.NET
     internal class ReplacerVisitor : CSharpSyntaxRewriter
     {
         private readonly List<string> _variables = new List<string>();
+        private readonly List<string> _staticMethods = new List<string>();
         private readonly List<string> _lists = new List<string>();
         private readonly List<string> _maps = new List<string>();
         private bool _onlyGathering = true;
@@ -27,12 +29,23 @@ namespace JavaScript.NET
             return base.VisitPropertyDeclaration(node);
         }
 
+        public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node)
+        {
+            if (_onlyGathering && !_staticMethods.Contains(node.Identifier.Text))
+            {
+                bool isStatic = node.DescendantTokens().Any(x => x.Kind() == SyntaxKind.StaticKeyword);
+                if(isStatic)
+                    _staticMethods.Add(node.Identifier.Text);
+            }
+            return base.VisitMethodDeclaration(node);
+        }
+
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
         {
             if (!_onlyGathering)
             {
                 string name = node.ToString();
-                if (_variables.Contains(name))
+                if (_variables.Contains(name) || _staticMethods.Contains(name))
                     name = "this." + name;
                 node = node.WithIdentifier(SyntaxFactory.Identifier(name + " "));
             }

@@ -29,3 +29,10 @@ namespace Tests
 }
 
 ```
+
+## Limitations
+The following list contains all limitations which are currently existing and known:
+- Interfaces
+- Enum
+- One Class per File
+- Subclasses are not allowed
