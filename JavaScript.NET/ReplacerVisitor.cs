@@ -9,17 +9,18 @@ namespace JavaScript.NET
     internal class ReplacerVisitor : CSharpSyntaxRewriter
     {
         private readonly List<string> _variables = new List<string>();
-        private readonly List<string> _staticMethods = new List<string>();
+        private readonly List<string> _methods = new List<string>();
         private readonly List<string> _lists = new List<string>();
         private readonly List<string> _maps = new List<string>();
+        private readonly Dictionary<string, string> _events = new Dictionary<string, string>();
         private bool _onlyGathering = true;
 
-        public override SyntaxNode? Visit(SyntaxNode? node)
+        public override SyntaxNode? VisitClassDeclaration(ClassDeclarationSyntax node)
         {
             _onlyGathering = true;
-            base.Visit(node);
+            base.VisitClassDeclaration(node);
             _onlyGathering = false;
-            return base.Visit(node);
+            return base.VisitClassDeclaration(node);
         }
 
         public override SyntaxNode? VisitPropertyDeclaration(PropertyDeclarationSyntax node)
@@ -29,15 +30,65 @@ namespace JavaScript.NET
             return base.VisitPropertyDeclaration(node);
         }
 
+        public override SyntaxNode? VisitEventFieldDeclaration(EventFieldDeclarationSyntax node)
+        {
+            if (_onlyGathering)
+            {
+                string name = node.Declaration.Variables[0].Identifier.ToString();
+                if (!_events.ContainsKey(name))
+                {
+                    foreach (AttributeListSyntax attributeList in node.AttributeLists)
+                    {
+                        AttributeSyntax attribute = attributeList.Attributes.FirstOrDefault(o => o.Name.ToString().Trim() == "JSEventHandler");
+                        if (attribute != null)
+                        {
+                            string code = attribute.ArgumentList?.Arguments[0].ToString() ?? "";
+                            code = JSCompiler.ReplaceFirst(JSCompiler.ReplaceLastOccurrence(code, "\"", ""), "\"", "");
+                            _events.Add(name, code);
+                        }
+                    }
+                }
+            }
+
+            return base.VisitEventFieldDeclaration(node);
+        }
+
         public override SyntaxNode? VisitMethodDeclaration(MethodDeclarationSyntax node)
         {
-            if (_onlyGathering && !_staticMethods.Contains(node.Identifier.Text))
+            if (_onlyGathering && !_methods.Contains(node.Identifier.Text))
             {
-                bool isStatic = node.DescendantTokens().Any(x => x.Kind() == SyntaxKind.StaticKeyword);
-                if(isStatic)
-                    _staticMethods.Add(node.Identifier.Text);
+                _methods.Add(node.Identifier.Text);
             }
             return base.VisitMethodDeclaration(node);
+        }
+
+        public override SyntaxNode? VisitExpressionStatement(ExpressionStatementSyntax node)
+        {
+            if (!_onlyGathering)
+            {
+                if (node.Expression is AssignmentExpressionSyntax assignment)
+                {
+                    string name = assignment.Left.ToString();
+                    if (_events.ContainsKey(name))
+                    {
+                        if (assignment.Right is IdentifierNameSyntax identifier)
+                        {
+                            if (_methods.Contains(identifier.ToString()))
+                            {
+                                return SyntaxFactory.ExpressionStatement(
+                                    SyntaxFactory.IdentifierName(_events[name].Replace("$cb", "this." + identifier)));
+                            }
+                        }
+                        else
+                        {
+                            return SyntaxFactory.ExpressionStatement(
+                                SyntaxFactory.IdentifierName(_events[name].Replace("$cb", assignment.Right.ToString())));
+                        }
+                    }
+                }
+            }
+
+            return base.VisitExpressionStatement(node);
         }
 
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
@@ -45,7 +96,7 @@ namespace JavaScript.NET
             if (!_onlyGathering)
             {
                 string name = node.ToString();
-                if (_variables.Contains(name) || _staticMethods.Contains(name))
+                if (_variables.Contains(name) || _methods.Contains(name))
                     name = "this." + name;
                 node = node.WithIdentifier(SyntaxFactory.Identifier(name + " "));
             }

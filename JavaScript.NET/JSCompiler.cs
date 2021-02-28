@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -225,7 +224,7 @@ namespace JavaScript.NET
         }
 
         // https://stackoverflow.com/questions/8809354/replace-first-occurrence-of-pattern-in-a-string
-        private static string ReplaceFirst(string text, string search, string replace)
+        internal static string ReplaceFirst(string text, string search, string replace)
         {
             int pos = text.IndexOf(search, StringComparison.Ordinal);
             if (pos < 0)
@@ -236,7 +235,7 @@ namespace JavaScript.NET
         }
 
         // https://stackoverflow.com/questions/14825949/replace-the-last-occurrence-of-a-word-in-a-string-c-sharp
-        private static string ReplaceLastOccurrence(string source, string find, string replace)
+        internal static string ReplaceLastOccurrence(string source, string find, string replace)
         {
             int place = source.LastIndexOf(find, StringComparison.Ordinal);
             if (place == -1)
