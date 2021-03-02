@@ -12,7 +12,7 @@ namespace AltV.Net.Client.Compiler
 
         public static void Main(string[] args)
         {
-            Console.Title = "AltV.Net.Client Compiler (c) 2020 github.com/DasDarki";
+            Console.Title = "AltV.Net.Client Compiler (c) 2020 github.com/EternityLife-de";
             string configPath;
             if (args.Length >= 1)
             {

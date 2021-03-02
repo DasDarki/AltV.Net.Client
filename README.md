@@ -9,6 +9,9 @@ JavaScript.NET is the custom written C# to JS compiler which is used by AltV.Net
 - Class Methods and Properties
 - Lists
 - Dictionaries
+- Interfaces
+- Enums
+- Events
 - JS Injection
 
 Here an example:
@@ -32,7 +35,4 @@ namespace Tests
 
 ## Limitations
 The following list contains all limitations which are currently existing and known:
-- Interfaces
-- Enum
-- One Class per File
-- Subclasses are not allowed
+- Nested Classes

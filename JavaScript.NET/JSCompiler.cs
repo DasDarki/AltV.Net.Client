@@ -34,30 +34,89 @@ namespace JavaScript.NET
         {
             SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(source);
             CompilationUnitSyntax root = syntaxTree.GetCompilationUnitRoot();
-            MemberDeclarationSyntax firstMember = root.Members[0];
-            ClassDeclarationSyntax classDeclaration = null;
-            if (firstMember.Kind() == SyntaxKind.ClassDeclaration)
+            return CompileRecursive(root.Members, entryPoints);
+        }
+
+        private static string CompileRecursive(SyntaxList<MemberDeclarationSyntax> tree, List<string> entryPoints)
+        {
+            string source = "";
+            foreach (MemberDeclarationSyntax member in tree)
             {
-                classDeclaration = (ClassDeclarationSyntax) firstMember;
+                source += CompileMember(member, entryPoints) + "\n";
             }
-            else if (firstMember.Kind() == SyntaxKind.NamespaceDeclaration)
+
+            return source;
+        }
+
+        private static string CompileMember(MemberDeclarationSyntax member, List<string> entryPoints)
+        {
+            if (member.Kind() == SyntaxKind.ClassDeclaration)
             {
-                var namespaceDeclaration = (NamespaceDeclarationSyntax) firstMember;
-                var namespaceFirstMember = namespaceDeclaration.Members[0];
-                if (namespaceFirstMember.Kind() == SyntaxKind.ClassDeclaration)
-                {
-                    classDeclaration = (ClassDeclarationSyntax) namespaceFirstMember;
-                }
+                return CompileClass((ClassDeclarationSyntax)member, entryPoints);
+            }
+
+            if (member.Kind() == SyntaxKind.EnumDeclaration)
+            {
+                return CompileEnum((EnumDeclarationSyntax)member);
+
+            }
+
+            if (member.Kind() == SyntaxKind.InterfaceDeclaration)
+            {
+                return CompileInterface((InterfaceDeclarationSyntax)member);
+            }
+
+            if (member.Kind() == SyntaxKind.NamespaceDeclaration)
+            {
+                return CompileRecursive(((NamespaceDeclarationSyntax) member).Members, entryPoints);
+            }
+
+            return "";
+        }
+
+        private static string CompileEnum(EnumDeclarationSyntax enumDeclaration)
+        {
+            foreach (AttributeListSyntax attributeList in enumDeclaration.AttributeLists)
+            {
+                AttributeSyntax attribute = attributeList.Attributes.FirstOrDefault(o => o.Name.ToString().Trim() == "JSEnum");
+                if (attribute != null)
+                    return "";
+            }
+
+            string source = "// BEGIN C# Enum: " + enumDeclaration.Identifier + "\n";
+            string values = "";
+            foreach (EnumMemberDeclarationSyntax member in enumDeclaration.Members)
+            {
+                if (values == "")
+                    values = member.ToString();
                 else
+                    values += ", " + member;
+            }
+
+            source += "const " + enumDeclaration.Identifier + " = Object.freeze({" + values + "});\n";
+            return source + "// END C# Enum: " + enumDeclaration.Identifier + "\n";
+        }
+
+        private static string CompileInterface(InterfaceDeclarationSyntax interfaceDeclaration)
+        {
+            string source = "// BEGIN C# Interface: " + interfaceDeclaration.Identifier + "\n";
+            source += "class " + interfaceDeclaration.Identifier + " {\n";
+            foreach (MemberDeclarationSyntax member in interfaceDeclaration.Members)
+            {
+                if (member.Kind() == SyntaxKind.MethodDeclaration)
                 {
-                    throw new CompilationException("After namespace declaration must come the class declaration!");
+                    MethodDeclarationSyntax method = (MethodDeclarationSyntax)member;
+                    source += CompileInterfaceMethod(method);
+                }
+                else if (member.Kind() == SyntaxKind.PropertyDeclaration)
+                {
+                    PropertyDeclarationSyntax property = (PropertyDeclarationSyntax)member;
+                    source += CompileProperty(property);
                 }
             }
 
-            if (classDeclaration == null)
-                throw new CompilationException("No class declaration found!");
-
-            return CompileClass(classDeclaration, entryPoints);
+            source += "}\n";
+            return source + "// END C# Interface: " + interfaceDeclaration.Identifier + "\n";
         }
 
         private static string CompileClass(ClassDeclarationSyntax classDeclaration, List<string> entryPoints)
@@ -95,6 +154,10 @@ namespace JavaScript.NET
                 {
                     PropertyDeclarationSyntax property = (PropertyDeclarationSyntax) member;
                     context.Source += CompileProperty(property);
+                }
+                else
+                {
+                    context.Source += CompileMember(member, entryPoints);
                 }
             }
 
@@ -140,6 +203,17 @@ namespace JavaScript.NET
             if (constructor.Body != null)
                 source += CompileBlock(constructor.Body);
             return source + "}\n";
+        }
+
+        private static string CompileInterfaceMethod(MethodDeclarationSyntax method)
+        {
+            string source = "";
+            string parameters = CompileParameters(method.ParameterList.Parameters);
+            if (method.DescendantTokens().Any(x => x.Kind() == SyntaxKind.StaticKeyword)) return "";
+            source += $"{method.Identifier}({parameters}) {{\n";
+            source += "throw new Error(\"The interface method " + method.Identifier + " must be implemented!\");\n";
+            source += "}\n";
+            return source;
         }
 
         private static string CompileMethod(MethodDeclarationSyntax method, out bool isEntryPoint)
