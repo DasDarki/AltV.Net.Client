@@ -7,8 +7,10 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace JavaScript.NET
 {
-    public class JSCompiler
+    public static class JSCompiler
     {
+        public delegate void JSCallback(params object[] args);
+        
         public static string Compile(List<string> sources)
         {
             string output = "";
@@ -78,7 +80,7 @@ namespace JavaScript.NET
         {
             foreach (AttributeListSyntax attributeList in enumDeclaration.AttributeLists)
             {
-                AttributeSyntax attribute = attributeList.Attributes.FirstOrDefault(o => o.Name.ToString().Trim() == "JSEnum");
+                AttributeSyntax attribute = attributeList.Attributes.FirstOrDefault(o => o.Name.ToString().Trim() == "JSExclude");
                 if (attribute != null)
                     return "";
             }
@@ -99,6 +101,13 @@ namespace JavaScript.NET
 
         private static string CompileInterface(InterfaceDeclarationSyntax interfaceDeclaration)
         {
+            foreach (AttributeListSyntax attributeList in interfaceDeclaration.AttributeLists)
+            {
+                AttributeSyntax attribute = attributeList.Attributes.FirstOrDefault(o => o.Name.ToString().Trim() == "JSExclude");
+                if (attribute != null)
+                    return "";
+            }
+
             string source = "// BEGIN C# Interface: " + interfaceDeclaration.Identifier + "\n";
             source += "class " + interfaceDeclaration.Identifier + " {\n";
             foreach (MemberDeclarationSyntax member in interfaceDeclaration.Members)
@@ -121,6 +130,13 @@ namespace JavaScript.NET
 
         private static string CompileClass(ClassDeclarationSyntax classDeclaration, List<string> entryPoints)
         {
+            foreach (AttributeListSyntax attributeList in classDeclaration.AttributeLists)
+            {
+                AttributeSyntax attribute = attributeList.Attributes.FirstOrDefault(o => o.Name.ToString().Trim() == "JSExclude");
+                if (attribute != null)
+                    return "";
+            }
+
             ReplacerVisitor visitor = new ReplacerVisitor();
             classDeclaration = (ClassDeclarationSyntax) visitor.VisitClassDeclaration(classDeclaration);
             CompilationContext context = new CompilationContext

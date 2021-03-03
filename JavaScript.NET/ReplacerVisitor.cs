@@ -59,7 +59,18 @@ namespace JavaScript.NET
             {
                 _methods.Add(node.Identifier.Text);
             }
+
+            if (node.Identifier.ToString().StartsWith("@"))
+            {
+                node = node.WithIdentifier(SyntaxFactory.Identifier(node.Identifier.ToString().Substring(1)));
+            }
+            
             return base.VisitMethodDeclaration(node);
+        }
+
+        public override SyntaxNode? VisitCastExpression(CastExpressionSyntax node)
+        {
+            return node.Expression;
         }
 
         public override SyntaxNode? VisitExpressionStatement(ExpressionStatementSyntax node)
@@ -73,7 +84,7 @@ namespace JavaScript.NET
                     {
                         if (assignment.Right is IdentifierNameSyntax identifier)
                         {
-                            if (_methods.Contains(identifier.ToString()))
+                            if (_methods.Contains(identifier.ToString()) && !identifier.ToString().StartsWith("this."))
                             {
                                 return SyntaxFactory.ExpressionStatement(
                                     SyntaxFactory.IdentifierName(_events[name].Replace("$cb", "this." + identifier)));
@@ -96,7 +107,9 @@ namespace JavaScript.NET
             if (!_onlyGathering)
             {
                 string name = node.ToString();
-                if (_variables.Contains(name) || _methods.Contains(name))
+                if (name.StartsWith("@"))
+                    name = name.Substring(1);
+                if ((_variables.Contains(name) || _methods.Contains(name)) && !name.StartsWith("this."))
                     name = "this." + name;
                 node = node.WithIdentifier(SyntaxFactory.Identifier(name + " "));
             }

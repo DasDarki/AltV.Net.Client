@@ -2,6 +2,15 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>EternityLife.de</Authors>
+    <Copyright>Copyright (c) 2021 EternityLife.de</Copyright>
+    <PackageProjectUrl>https://github.com/EternityLife-de/AltV.Net.Client</PackageProjectUrl>
+    <PackageLicenseUrl>https://raw.githubusercontent.com/EternityLife-de/AltV.Net.Client/development/LICENSE</PackageLicenseUrl>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JavaScript.NET\JavaScript.NET.csproj" />
+  </ItemGroup>
 
 </Project>
